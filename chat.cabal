@@ -26,6 +26,7 @@ executable chat
   build-depends:
     base < 5
    ,chat
+  default-language: Haskell2010
 
 test-suite test-chat
   hs-source-dirs: test
