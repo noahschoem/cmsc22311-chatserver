@@ -2,6 +2,12 @@
 module Chat (chat) where
 import Network.Socket
 import System.IO
+import Control.Concurrent
+import Control.Concurrent.Chan
+import Control.Monad
+import Control.Monad.Fix (fix)
+
+type Message = String
 
 -- | Chat server entry point.
 chat :: IO ()
@@ -12,20 +18,29 @@ chat = do
   setSocketOption sock ReuseAddr 1
   -- listen on TCP port 4242
   bindSocket sock (SockAddrInet 4242 iNADDR_ANY)
-  -- allow a maximum of 2 outstanding connections
   listen sock 2
-  mainLoop sock
+  chan <- newChan
+  mainLoop sock chan
   
-mainLoop :: Socket -> IO ()
-mainLoop sock = do   
+mainLoop :: Socket -> Chan Message -> IO ()
+mainLoop sock chan = do   
   -- accept one connection and handle it
   conn <- accept sock
-  runConn conn
-  mainLoop sock
+  forkIO (runConn conn chan)
+  mainLoop sock chan
 
-runConn :: (Socket, SockAddr) -> IO ()
-runConn (sock, _) = do
+runConn :: (Socket, SockAddr) -> Chan Message -> IO ()
+runConn (sock, _) chan = do
   hdl <- socketToHandle sock ReadWriteMode
   hSetBuffering hdl NoBuffering
-  hPutStrLn hdl "Hi!"
-  hClose hdl
+  hPutStrLn hdl "Welcome to the server!"
+  chan' <- dupChan chan
+  forkIO $ fix $ \loop -> do
+    line <- readChan chan'
+    hPutStrLn hdl line
+    loop
+  fix $ \loop -> do
+    line <- liftM init (hGetLine hdl)
+    writeChan chan' line
+    loop
+--   hClose hdl
