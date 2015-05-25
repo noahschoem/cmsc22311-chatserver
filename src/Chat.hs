@@ -32,8 +32,9 @@ runConn :: (Socket, SockAddr) -> Chan Message -> IO ()
 runConn (sock, _) chan = do
   hdl <- socketToHandle sock ReadWriteMode
   hSetBuffering hdl NoBuffering
+--   hPutStrLn hdl "Someone has joined!"
   chan' <- dupChan chan
-  writeChan chan' "Someone has joined."
+  writeChan chan "Someone has joined!"
   forkIO $ fix $ \loop -> do
     line <- readChan chan'
     hPutStrLn hdl line
