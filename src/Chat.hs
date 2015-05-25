@@ -35,7 +35,7 @@ runConn (sock, _) chan = do
   chan' <- dupChan chan
   writeChan chan' "Someone has joined."
   forkIO $ fix $ \loop -> do
-    line <- readChan chan
+    line <- readChan chan'
     hPutStrLn hdl line
     loop
   fix $ \loop -> do
