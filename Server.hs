@@ -6,5 +6,5 @@ import Chat
 
 -- | Run our chat server.
 main :: IO ()
-main = chat
+main = chat 4242
 
