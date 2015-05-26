@@ -1,4 +1,7 @@
 -- | CS240h Lab 2 Chat Server
+-- This code is taken heavily from the Haskell Wiki's guide on how to build a chat server
+-- (https://wiki.haskell.org/Implement_a_chat_server)
+-- and rewritten and modified to fit the requirements of the project.
 module Chat (chat) where
 import Network.Socket
 import System.IO
@@ -7,7 +10,7 @@ import Control.Concurrent.Chan
 import Control.Monad
 import Control.Monad.Fix (fix)
 
-type Message = String
+type Message = (String,Int) -- (message body,user id)
 
 -- | Chat server entry point.
 chat :: PortNumber -> IO ()
@@ -20,27 +23,26 @@ chat port = do
   bindSocket sock (SockAddrInet port iNADDR_ANY)
   listen sock 2
   chan <- newChan
-  mainLoop sock chan
+  mainLoop sock chan 1
   
-mainLoop :: Socket -> Chan Message -> IO ()
-mainLoop sock chan = do   
+mainLoop :: Socket -> Chan Message -> Int -> IO ()
+mainLoop sock chan n = do   
   conn <- accept sock
-  forkIO (runConn conn chan)
-  mainLoop sock chan
+  forkIO (runConn conn chan n)
+  mainLoop sock chan (n+1)
 
-runConn :: (Socket, SockAddr) -> Chan Message -> IO ()
-runConn (sock, _) chan = do
+runConn :: (Socket, SockAddr) -> Chan Message -> Int -> IO ()
+runConn (sock, _) chan n = do
   hdl <- socketToHandle sock ReadWriteMode
   hSetBuffering hdl NoBuffering
---   hPutStrLn hdl "Someone has joined!"
   chan' <- dupChan chan
-  writeChan chan "Someone has joined!"
+  writeChan chan (show n ++ " has joined.",n)
   forkIO $ fix $ \loop -> do
-    line <- readChan chan'
-    hPutStrLn hdl line
+    (line,user) <- readChan chan'
+    when(user /= n) $ hPutStrLn hdl $ show user ++ ": " ++ line
     loop
   fix $ \loop -> do
     line <- liftM init (hGetLine hdl)
-    writeChan chan' line
+    writeChan chan' (line,n)
     loop
 --   hClose hdl
