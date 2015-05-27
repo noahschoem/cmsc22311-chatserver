@@ -4,7 +4,6 @@
    and rewritten and modified to fit the requirements of the project. -}
 module Chat (chat) where
 import Network
--- import Network.Socket
 import System.IO
 import Control.Concurrent
 import Control.Monad
@@ -14,7 +13,7 @@ import Control.Exception
 type Message = (String,Int) -- (message body,user id)
 
 -- | Chat server entry point.
-chat :: PortNumber -> IO ()
+chat :: Int -> IO ()
 chat port = withSocketsDo $ do
   -- create socket
   sock <- listenOn $ PortNumber $ fromIntegral port
