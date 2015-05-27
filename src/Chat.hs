@@ -36,7 +36,10 @@ runConn (sock, _) chan n = do
   hdl <- socketToHandle sock ReadWriteMode
   hSetBuffering hdl NoBuffering
   chan' <- dupChan chan
-  writeChan chan (show n ++ " has joined.",0)
+  {- since users only ever get assigned positive integer id's, 
+     messages with an user id of 0 get seen by everyone.
+     We'll use user id of 0 to represent server-wide messages. -}
+  writeChan chan ("Welcome " ++ show n ++ " to the server!",0)
   thread <- forkIO $ fix $ \loop -> do
     (line,user) <- readChan chan'
     when(user /= n) $ hPutStrLn hdl line
