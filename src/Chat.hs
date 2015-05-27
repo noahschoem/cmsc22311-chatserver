@@ -7,10 +7,13 @@ import Network.Socket
 import System.IO
 import Control.Concurrent
 import Control.Concurrent.Chan
+import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.Fix (fix)
 
-type Message = (String,Int) -- (message body,user id)
+type Message = (String,Int) -- message body
+type State = [Chan Message]
+type StateVar = MVar State
 
 -- | Chat server entry point.
 chat :: PortNumber -> IO ()
@@ -22,27 +25,33 @@ chat port = do
   -- listen on TCP port 4242
   bindSocket sock (SockAddrInet port iNADDR_ANY)
   listen sock 2
-  chan <- newChan
-  mainLoop sock chan 1
+  state <- newMVar []
+  mainLoop sock state 1
   
-mainLoop :: Socket -> Chan Message -> Int -> IO ()
-mainLoop sock chan n = do   
+mainLoop :: Socket -> StateVar -> Int -> IO ()
+mainLoop sock state n = do   
   conn <- accept sock
-  forkIO (runConn conn chan n)
-  mainLoop sock chan (n+1)
+  forkIO (runConn conn state n)
+  mainLoop sock state (n+1)
 
-runConn :: (Socket, SockAddr) -> Chan Message -> Int -> IO ()
-runConn (sock, _) chan n = do
+runConn :: (Socket, SockAddr) -> StateVar -> Int -> IO ()
+runConn (sock, _) state n = do
   hdl <- socketToHandle sock ReadWriteMode
   hSetBuffering hdl NoBuffering
-  chan' <- dupChan chan
-  writeChan chan (show n ++ " has joined.",n)
+  channels <- takeMVar state
+  chan <- newChan
+  mapM (\c -> writeChan c (show n ++ " has joined.",n)) $ chan:channels
+  putMVar state $ chan:channels
   forkIO $ fix $ \loop -> do
-    (line,user) <- readChan chan'
-    when(user /= n) $ hPutStrLn hdl $ show user ++ ": " ++ line
+    line <- liftM init (hGetLine hdl)
+    channels' <- takeMVar state
+    mapM (\c-> writeChan c (line,n)) $ filter (/= chan) channels'
+    putMVar state channels'
     loop
   fix $ \loop -> do
-    line <- liftM init (hGetLine hdl)
-    writeChan chan' (line,n)
+    channels' <- takeMVar state
+    let channel = head $ filter (== chan) channels'
+    (line,user) <- readChan channel
+    putMVar state channels'
+    hPutStrLn hdl $ show user ++ ": " ++ line
     loop
---   hClose hdl
