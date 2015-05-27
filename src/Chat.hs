@@ -3,7 +3,8 @@
    (https://wiki.haskell.org/Implement_a_chat_server)
    and rewritten and modified to fit the requirements of the project. -}
 module Chat (chat) where
-import Network.Socket
+import Network
+-- import Network.Socket
 import System.IO
 import Control.Concurrent
 import Control.Monad
@@ -14,27 +15,21 @@ type Message = (String,Int) -- (message body,user id)
 
 -- | Chat server entry point.
 chat :: PortNumber -> IO ()
-chat port = do
+chat port = withSocketsDo $ do
   -- create socket
-  sock <- socket AF_INET Stream 0
-  -- make socket immediately reusable - eases debugging.
-  setSocketOption sock ReuseAddr 1
-  -- listen on TCP port 4242
-  bindSocket sock (SockAddrInet port iNADDR_ANY)
-  listen sock 2
+  sock <- listenOn $ PortNumber $ fromIntegral port
   chan <- newChan
   mainLoop sock chan 1
   
 mainLoop :: Socket -> Chan Message -> Int -> IO ()
 mainLoop sock chan n = do   
-  conn <- accept sock
-  _ <- forkIO (runConn conn chan n)
+  (hdl,_,_) <- accept sock
+  hSetBuffering hdl NoBuffering
+  _ <- forkIO (runConn hdl chan n)
   mainLoop sock chan (n+1)
 
-runConn :: (Socket, SockAddr) -> Chan Message -> Int -> IO ()
-runConn (sock, _) chan n = do
-  hdl <- socketToHandle sock ReadWriteMode
-  hSetBuffering hdl NoBuffering
+runConn :: Handle -> Chan Message -> Int -> IO ()
+runConn hdl chan n = do
   chan' <- dupChan chan
   {- since users only ever get assigned positive integer id's, 
      messages with an user id of 0 get seen by everyone.
