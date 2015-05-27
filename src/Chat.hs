@@ -6,9 +6,9 @@ module Chat (chat) where
 import Network.Socket
 import System.IO
 import Control.Concurrent
-import Control.Concurrent.Chan
 import Control.Monad
 import Control.Monad.Fix (fix)
+import Control.Exception
 
 type Message = (String,Int) -- (message body,user id)
 
@@ -28,7 +28,7 @@ chat port = do
 mainLoop :: Socket -> Chan Message -> Int -> IO ()
 mainLoop sock chan n = do   
   conn <- accept sock
-  forkIO (runConn conn chan n)
+  _ <- forkIO (runConn conn chan n)
   mainLoop sock chan (n+1)
 
 runConn :: (Socket, SockAddr) -> Chan Message -> Int -> IO ()
@@ -37,11 +37,14 @@ runConn (sock, _) chan n = do
   hSetBuffering hdl NoBuffering
   chan' <- dupChan chan
   writeChan chan (show n ++ " has joined.",0)
-  forkIO $ fix $ \loop -> do
+  thread <- forkIO $ fix $ \loop -> do
     (line,user) <- readChan chan'
     when(user /= n) $ hPutStrLn hdl line
     loop
-  fix $ \loop -> do
-    line <- liftM init (hGetLine hdl)
+  handle (\(SomeException _) -> return ()) $ fix $ \loop -> do
+    line <- hGetLine hdl
     writeChan chan' (show n ++ ": " ++ line,n)
     loop
+  hClose hdl
+  killThread thread
+  writeChan chan (show n ++ " has left.",0)
