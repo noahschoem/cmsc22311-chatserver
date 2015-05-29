@@ -45,14 +45,19 @@ runConn hdl chan n = do
      messages with an user id of 0 get seen by everyone.
      We'll use user id of 0 to represent server-wide messages. -}
   writeChan chan (show n ++ " has joined.",0)
+  -- forks off a thread for sending user n messages.
   thread <- forkIO $ fix $ \loop -> do
     (line,user) <- readChan chan'
     when (user /= n) $ hPutStrLn hdl line
     loop
+  -- reads messages from user n.  Any connection error
+  -- (e.g. user closing connection) breaks us out of this
+  -- and moves us to the cleanup stage.
   handle (\(SomeException _) -> return ()) $ fix $ \loop -> do
     line <- hGetLine hdl
     writeChan chan' (show n ++ ": " ++ line,n)
     loop
+  -- cleaning up after a user leaves
   hClose hdl
   killThread thread
   writeChan chan (show n ++ " has left.",0)
