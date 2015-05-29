@@ -5,8 +5,6 @@ build-type:     Simple
 cabal-version:  >= 1.10
 category:       System
 
--- STUDENTS: Make sure you add any no haskell source files you want included in
--- your submission here!
 extra-source-files:
   README.md
 
