@@ -6,20 +6,20 @@ module Main (main) where
 import Chat
 
 import System.Environment (lookupEnv)
+import System.Exit
 
 -- | Run our chat server.
 main :: IO ()
 main = do
   port <- lookupEnv "CHAT_SERVER_PORT"
   case port of
-       Nothing -> defaultChat
-       Just "" -> defaultChat
+       Nothing -> varNotSet
+       Just "" -> varNotSet
        Just x  -> chat $ read x
          
--- | default to using port 4242 if the 
+-- | exit gracefully if the 
 --   environment variable CHAT_SERVER_PORT is undefined
-defaultChat :: IO ()
-defaultChat = do
-  putStrLn $ "CHAT_SERVER_PORT environment variable undefined.  " ++
-    "Defaulting to Port 4242."
-  chat 4242
+varNotSet :: IO ()
+varNotSet = do
+  putStrLn $ "CHAT_SERVER_PORT environment variable not set."
+  exitWith $ ExitFailure 1

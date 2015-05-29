@@ -5,11 +5,13 @@ import Test.Hspec
 import Test.QuickCheck
 import System.Cmd
 
-import Chat
+import Chat (chat, mainLoop, runConn)
 
+-- Due to not leaving myself enough time,
+-- I did not write any tests using HSpec.
 main :: IO ()
-main = hspec $ describe "Testing Lab 2" $ do
-  describe "dummy test" $ do
+main = hspec $ describe "Testing chat" $ do
+  describe "messages sent test" $ do
     it "1==1" $ property $
       1 `shouldBe` 1
       

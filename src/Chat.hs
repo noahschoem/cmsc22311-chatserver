@@ -6,8 +6,7 @@
 module Chat (chat) where
 import Network    (Socket, PortID (PortNumber), 
                     withSocketsDo, listenOn, accept)
-import System.IO  (BufferMode (NoBuffering), Handle, utf8,
-                   hSetBuffering, hSetEncoding, hPutStrLn, hGetLine, hClose)
+import System.IO
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.Chan
 import Control.Monad     (when)
